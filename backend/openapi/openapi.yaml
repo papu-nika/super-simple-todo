@@ -1,0 +1,102 @@
+openapi: 3.0.3
+info:
+  title: Simple TODO API
+  description: A simple API to manage TODO tasks.
+  version: 1.0.0
+paths:
+  /todos:
+    get:
+      summary: Get all TODOs
+      responses:
+        "200":
+          description: A list of TODOs
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/todo-list.yaml"
+    post:
+      summary: Create a new TODO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/todo.yaml"
+      responses:
+        "201":
+          description: TODO created
+  /todos/{id}:
+    get:
+      summary: Get a TODO by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single TODO
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/todo.yaml"
+    delete:
+      summary: Delete a TODO by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: TODO deleted
+  /users:
+    get:
+      summary: Get all users
+      responses:
+        "200":
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/user-list.yaml"
+    post:
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/user.yaml"
+      responses:
+        "201":
+          description: User created
+  /users/{id}:
+    get:
+      summary: Get a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A single user
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/user.yaml"
+    delete:
+      summary: Delete a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: User deleted

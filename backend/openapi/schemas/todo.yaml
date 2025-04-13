@@ -1,0 +1,11 @@
+type: object
+properties:
+  id:
+    type: string
+    description: The unique identifier for a TODO
+  title:
+    type: string
+    description: The title of the TODO
+  completed:
+    type: boolean
+    description: Whether the TODO is completed
