@@ -4,10 +4,24 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunction } from "@remix-run/node";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { json } from "@remix-run/node";
+import { getUser } from "./auth.server";
 
 import "./tailwind.css";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -22,7 +36,14 @@ export const links: LinksFunction = () => [
   },
 ];
 
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await getUser(request);
+  return json({ user });
+};
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  const { user } = useLoaderData<typeof loader>();
+
   return (
     <html lang="en">
       <head>
@@ -32,7 +53,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
+        <QueryClientProvider client={queryClient}>
+          <header className="p-4 bg-gray-800 text-white flex justify-between">
+            <h1>My App</h1>
+            {user ? (
+              <div>
+                <span>{user.displayName}</span>
+                <img
+                  src={user.photos[0].value}
+                  alt="User Avatar"
+                  className="inline-block w-8 h-8 rounded-full ml-2"
+                />
+              </div>
+            ) : (
+              <a href="/auth/google" className="text-blue-400">
+                Login
+              </a>
+            )}
+          </header>
+          {children}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

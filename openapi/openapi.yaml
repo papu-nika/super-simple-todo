@@ -100,3 +100,24 @@ paths:
       responses:
         "204":
           description: User deleted
+  /auth/google:
+    get:
+      summary: Redirect to Google OAuth
+      description: Initiates the Google OAuth login process.
+      responses:
+        "302":
+          description: Redirect to Google login
+    post:
+      summary: Handle Google OAuth callback
+      description: Processes the callback from Google OAuth and authenticates the user.
+      responses:
+        "200":
+          description: User authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for authenticated user

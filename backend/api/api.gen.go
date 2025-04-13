@@ -33,11 +33,32 @@ type PostTodosJSONBody struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// PostUsersJSONBody defines parameters for PostUsers.
+type PostUsersJSONBody struct {
+	// Email The email address of the user
+	Email *string `json:"email,omitempty"`
+
+	// Id The unique identifier for a user
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the user
+	Name *string `json:"name,omitempty"`
+}
+
 // PostTodosJSONRequestBody defines body for PostTodos for application/json ContentType.
 type PostTodosJSONRequestBody PostTodosJSONBody
 
+// PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
+type PostUsersJSONRequestBody PostUsersJSONBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Redirect to Google OAuth
+	// (GET /auth/google)
+	GetAuthGoogle(c *gin.Context)
+	// Handle Google OAuth callback
+	// (POST /auth/google)
+	PostAuthGoogle(c *gin.Context)
 	// Get all TODOs
 	// (GET /todos)
 	GetTodos(c *gin.Context)
@@ -50,6 +71,18 @@ type ServerInterface interface {
 	// Get a TODO by ID
 	// (GET /todos/{id})
 	GetTodosId(c *gin.Context, id string)
+	// Get all users
+	// (GET /users)
+	GetUsers(c *gin.Context)
+	// Create a new user
+	// (POST /users)
+	PostUsers(c *gin.Context)
+	// Delete a user by ID
+	// (DELETE /users/{id})
+	DeleteUsersId(c *gin.Context, id string)
+	// Get a user by ID
+	// (GET /users/{id})
+	GetUsersId(c *gin.Context, id string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -60,6 +93,32 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetAuthGoogle operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthGoogle(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuthGoogle(c)
+}
+
+// PostAuthGoogle operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthGoogle(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthGoogle(c)
+}
 
 // GetTodos operation middleware
 func (siw *ServerInterfaceWrapper) GetTodos(c *gin.Context) {
@@ -135,6 +194,80 @@ func (siw *ServerInterfaceWrapper) GetTodosId(c *gin.Context) {
 	siw.Handler.GetTodosId(c, id)
 }
 
+// GetUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetUsers(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetUsers(c)
+}
+
+// PostUsers operation middleware
+func (siw *ServerInterfaceWrapper) PostUsers(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostUsers(c)
+}
+
+// DeleteUsersId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUsersId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteUsersId(c, id)
+}
+
+// GetUsersId operation middleware
+func (siw *ServerInterfaceWrapper) GetUsersId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetUsersId(c, id)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -162,10 +295,50 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/auth/google", wrapper.GetAuthGoogle)
+	router.POST(options.BaseURL+"/auth/google", wrapper.PostAuthGoogle)
 	router.GET(options.BaseURL+"/todos", wrapper.GetTodos)
 	router.POST(options.BaseURL+"/todos", wrapper.PostTodos)
 	router.DELETE(options.BaseURL+"/todos/:id", wrapper.DeleteTodosId)
 	router.GET(options.BaseURL+"/todos/:id", wrapper.GetTodosId)
+	router.GET(options.BaseURL+"/users", wrapper.GetUsers)
+	router.POST(options.BaseURL+"/users", wrapper.PostUsers)
+	router.DELETE(options.BaseURL+"/users/:id", wrapper.DeleteUsersId)
+	router.GET(options.BaseURL+"/users/:id", wrapper.GetUsersId)
+}
+
+type GetAuthGoogleRequestObject struct {
+}
+
+type GetAuthGoogleResponseObject interface {
+	VisitGetAuthGoogleResponse(w http.ResponseWriter) error
+}
+
+type GetAuthGoogle302Response struct {
+}
+
+func (response GetAuthGoogle302Response) VisitGetAuthGoogleResponse(w http.ResponseWriter) error {
+	w.WriteHeader(302)
+	return nil
+}
+
+type PostAuthGoogleRequestObject struct {
+}
+
+type PostAuthGoogleResponseObject interface {
+	VisitPostAuthGoogleResponse(w http.ResponseWriter) error
+}
+
+type PostAuthGoogle200JSONResponse struct {
+	// Token JWT token for authenticated user
+	Token *string `json:"token,omitempty"`
+}
+
+func (response PostAuthGoogle200JSONResponse) VisitPostAuthGoogleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type GetTodosRequestObject struct {
@@ -251,8 +424,97 @@ func (response GetTodosId200JSONResponse) VisitGetTodosIdResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUsersRequestObject struct {
+}
+
+type GetUsersResponseObject interface {
+	VisitGetUsersResponse(w http.ResponseWriter) error
+}
+
+type GetUsers200JSONResponse []struct {
+	// Email The email address of the user
+	Email *string `json:"email,omitempty"`
+
+	// Id The unique identifier for a user
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the user
+	Name *string `json:"name,omitempty"`
+}
+
+func (response GetUsers200JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostUsersRequestObject struct {
+	Body *PostUsersJSONRequestBody
+}
+
+type PostUsersResponseObject interface {
+	VisitPostUsersResponse(w http.ResponseWriter) error
+}
+
+type PostUsers201Response struct {
+}
+
+func (response PostUsers201Response) VisitPostUsersResponse(w http.ResponseWriter) error {
+	w.WriteHeader(201)
+	return nil
+}
+
+type DeleteUsersIdRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteUsersIdResponseObject interface {
+	VisitDeleteUsersIdResponse(w http.ResponseWriter) error
+}
+
+type DeleteUsersId204Response struct {
+}
+
+func (response DeleteUsersId204Response) VisitDeleteUsersIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type GetUsersIdRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetUsersIdResponseObject interface {
+	VisitGetUsersIdResponse(w http.ResponseWriter) error
+}
+
+type GetUsersId200JSONResponse struct {
+	// Email The email address of the user
+	Email *string `json:"email,omitempty"`
+
+	// Id The unique identifier for a user
+	Id *string `json:"id,omitempty"`
+
+	// Name The name of the user
+	Name *string `json:"name,omitempty"`
+}
+
+func (response GetUsersId200JSONResponse) VisitGetUsersIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Redirect to Google OAuth
+	// (GET /auth/google)
+	GetAuthGoogle(ctx context.Context, request GetAuthGoogleRequestObject) (GetAuthGoogleResponseObject, error)
+	// Handle Google OAuth callback
+	// (POST /auth/google)
+	PostAuthGoogle(ctx context.Context, request PostAuthGoogleRequestObject) (PostAuthGoogleResponseObject, error)
 	// Get all TODOs
 	// (GET /todos)
 	GetTodos(ctx context.Context, request GetTodosRequestObject) (GetTodosResponseObject, error)
@@ -265,6 +527,18 @@ type StrictServerInterface interface {
 	// Get a TODO by ID
 	// (GET /todos/{id})
 	GetTodosId(ctx context.Context, request GetTodosIdRequestObject) (GetTodosIdResponseObject, error)
+	// Get all users
+	// (GET /users)
+	GetUsers(ctx context.Context, request GetUsersRequestObject) (GetUsersResponseObject, error)
+	// Create a new user
+	// (POST /users)
+	PostUsers(ctx context.Context, request PostUsersRequestObject) (PostUsersResponseObject, error)
+	// Delete a user by ID
+	// (DELETE /users/{id})
+	DeleteUsersId(ctx context.Context, request DeleteUsersIdRequestObject) (DeleteUsersIdResponseObject, error)
+	// Get a user by ID
+	// (GET /users/{id})
+	GetUsersId(ctx context.Context, request GetUsersIdRequestObject) (GetUsersIdResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -277,6 +551,56 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetAuthGoogle operation middleware
+func (sh *strictHandler) GetAuthGoogle(ctx *gin.Context) {
+	var request GetAuthGoogleRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuthGoogle(ctx, request.(GetAuthGoogleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuthGoogle")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetAuthGoogleResponseObject); ok {
+		if err := validResponse.VisitGetAuthGoogleResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthGoogle operation middleware
+func (sh *strictHandler) PostAuthGoogle(ctx *gin.Context) {
+	var request PostAuthGoogleRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthGoogle(ctx, request.(PostAuthGoogleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthGoogle")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostAuthGoogleResponseObject); ok {
+		if err := validResponse.VisitPostAuthGoogleResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetTodos operation middleware
@@ -391,18 +715,135 @@ func (sh *strictHandler) GetTodosId(ctx *gin.Context, id string) {
 	}
 }
 
+// GetUsers operation middleware
+func (sh *strictHandler) GetUsers(ctx *gin.Context) {
+	var request GetUsersRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsers(ctx, request.(GetUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetUsersResponseObject); ok {
+		if err := validResponse.VisitGetUsersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostUsers operation middleware
+func (sh *strictHandler) PostUsers(ctx *gin.Context) {
+	var request PostUsersRequestObject
+
+	var body PostUsersJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostUsers(ctx, request.(PostUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostUsers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostUsersResponseObject); ok {
+		if err := validResponse.VisitPostUsersResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteUsersId operation middleware
+func (sh *strictHandler) DeleteUsersId(ctx *gin.Context, id string) {
+	var request DeleteUsersIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteUsersId(ctx, request.(DeleteUsersIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteUsersId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteUsersIdResponseObject); ok {
+		if err := validResponse.VisitDeleteUsersIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUsersId operation middleware
+func (sh *strictHandler) GetUsersId(ctx *gin.Context, id string) {
+	var request GetUsersIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsersId(ctx, request.(GetUsersIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsersId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetUsersIdResponseObject); ok {
+		if err := validResponse.VisitGetUsersIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7xTTY/TMBD9K9bAMTRZllNuhUqop61EJQ4IITeZNrMktteegqIq/x2N3e1XAhKH3Zvt",
-	"8byZ9+bNASrbOWvQcIDyAKFqsNOXxx9sayt3561Dz4QxKmktMtZyqTFUnhyTNVDC1wa5Qa+4QbV+WDwo",
-	"Cur8PQPuHUIJG2tb1AaGDGgCZd2g2ht62qOiGg3TltCrrfVKR9QzUGBPZic4TNziNFQMKbs9dTXOH04v",
-	"dvOIFQvipQjvWgos6MTYRRHeetxCCW/ys4j5MSO/ku8Mrb3XPQxSjMzWjpudq0CilZqvloqt6rTRu6OQ",
-	"rMPPMIMTUfiSvsbgfLWEDH6hDwnoblbMCqlsHRrtCEq4nxWze8jAaW4igVy6i6cdRmoyYi2dLGso4TPy",
-	"On7IwGNw1oQ0/PdFkTxgGE3M0861VMXM/DFI/WcD/Y9OSeEozq0oEpHxCdUQZxX2Xad9n9pUum2fYxk4",
-	"GybYrGy4oPO0x8Afbd2/CJNEQqqQlx1hv8dhpOLdhFdllJVHLbtyTfNTfFVaGfydLCzxNML8QPWQ0GTN",
-	"xuQX8T3SX9bRAl53yOgDlN8OQFJbbAEZGN2Jt6iGWwbZhRK3y/N9xO7DX9ilFm/ZpQaPy602vVouZJT/",
-	"9OVrMSle0CPj7Te740pP2fxKnmEY/gQAAP//VQjHbMEFAAA=",
+	"H4sIAAAAAAAC/8RVwW7bOBD9FYK7R6+lJHvyzbsBUvcSo3WQQ1EUtDi2mEikQo5aGIb/vRhStmxRdtwU",
+	"Tm+2hpyZ9+a94ZpnpqyMBo2Oj9bcZTmUYv/nNzTS0P/KmgosKvBRulYAgqQ/ElxmVYXKaD7ijzlgDpZh",
+	"Dmx2f3vPlGPt8QHHVQV8xOfGFCA03wy46skyy4HVWr3UwJQEjWqhwLKFsUz4rG0ih1bpJeVBhQX0p/Ih",
+	"Zha7ruL7m90XM3+CDCnjPgn/FMohZVcIpSfhbwsLPuJ/JS2JSXMjOaCvTS2sFav9zLUDG9MLpVBFPxIf",
+	"YkJKC85tEfksPYz8KrPH8mhRHiGWIqe7OMUr3Xgbr75WxCsVU3ph4l7HzCnSIBtPJwwNK4UWy0agKNyz",
+	"G/KdgPjncNQHx9MJH/DvYF1IdDVMhylVNhVoUSk+4jfDdHjDB7wSmHsAiagxT5bGLIMel4BxRxOtUAkE",
+	"57m784fZ/bjGnBVmqTSrrMnA+cZIG4LuTSQf8TtAOhau8AG34CqjXZDOTXod1/oEUlnIkJA3lXwNPx1X",
+	"l6Wwq/5jviGCWxnXA2IaemxAZKIo5iJ7ZgtrykNIQktGrJDgsh1qmmKMb2rcCYDXaRo2kEbQviVRVQUl",
+	"VUYnT4762q6v2FlonkHHOD4+zpgPBSPsNSrPljV9Osz64KCTrEP4B6Fl0Rn+lkR/NKH94fY0FClh5g/8",
+	"JkfnbrLg1R6kY0YRWgRkGteBeQfIRFFsY62Y4rm3cF5qcPifkauLIAkgqIqy9IqhrWETsXjVs/RoKWQW",
+	"eqb5v//KBNPwIzwy7QiTtZKbkI0ewhj8rf/u4U+kXyZWlIBgHR99WXNFtWnB8O02puXeRTDYY6Kr168R",
+	"un+PoAstdtGFBpvnl81XbHJLozypy/dCkl5QI/E7opfN49An8wN6aPy0Pk46+MEfeAdM7Wt70sGh4X4H",
+	"N7FTDm7hXM7B4fV/o4P9Vj7DwU2R7QjPdLCH/wcd7NG94mDC87qD3xVJekGNHHHwbr5dB+/Ts9lsfgYA",
+	"AP//25lawyUNAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
